@@ -176,8 +176,8 @@ jobs:
 
       - name: Check src/ changes have a matching spec update
         run: |
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
+          BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
+          HEAD="${{ github.event.pull_request.head.sha || github.sha }}"
           CHANGED=$(git diff --name-only "$BASE" "$HEAD")
 
           SRC_CHANGED=$(echo "$CHANGED" | grep -E '^src/' || true)
