@@ -111,7 +111,9 @@ jobs:
       always() &&
       needs.dependency-check.outputs.root == 'true' &&
       needs.dependency-check.outputs.backend == 'true' &&
-      needs.dependency-check.outputs.frontend == 'true'
+      needs.dependency-check.outputs.frontend == 'true' &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
