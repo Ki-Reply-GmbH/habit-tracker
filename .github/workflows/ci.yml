@@ -32,6 +32,7 @@ jobs:
         run: npm audit --audit-level=high
 
   backend:
+    if: hashFiles('src/backend/package-lock.json') != ''
     runs-on: ubuntu-latest
     defaults:
       run:
