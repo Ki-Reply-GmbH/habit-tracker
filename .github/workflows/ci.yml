@@ -10,6 +10,18 @@ permissions:
   contents: read
 
 jobs:
+  # Secrets scan — runs unconditionally, no dependency install needed.
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan for committed secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   dependency-check:
     runs-on: ubuntu-latest
     outputs:
@@ -42,8 +54,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      - name: Type check
+        run: npm run typecheck
+
+      # Coverage floor — Phase 4 checkpoint requirement, keeps streak/grace-day
+      # logic from regressing untested.
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageThreshold='{"global":{"branches":85,"functions":85,"lines":85,"statements":85}}'
 
       # Security / lint quality gate — Phase 4 checkpoint requirement.
       # Swap for pip-audit / bandit / etc. if the backend is Python.
@@ -73,8 +90,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageThreshold='{"global":{"branches":85,"functions":85,"lines":85,"statements":85}}'
 
   frontend:
     needs: dependency-check
@@ -99,8 +119,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run tests
-        run: npm test
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests with coverage
+        run: npm test -- --coverage --coverageThreshold='{"global":{"branches":85,"functions":85,"lines":85,"statements":85}}'
 
       - name: Build
         run: npm run build
