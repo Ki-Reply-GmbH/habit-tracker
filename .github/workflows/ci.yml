@@ -178,6 +178,9 @@ jobs:
         run: |
           BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
           HEAD="${{ github.event.pull_request.head.sha || github.sha }}"
+          if [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            BASE=$(git hash-object -t tree /dev/null)
+          fi
           CHANGED=$(git diff --name-only "$BASE" "$HEAD")
 
           SRC_CHANGED=$(echo "$CHANGED" | grep -E '^src/' || true)
