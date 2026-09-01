@@ -107,7 +107,11 @@ jobs:
 
   e2e:
     needs: [dependency-check, backend, frontend]
-    if: needs.dependency-check.outputs.root == 'true'
+    if: >-
+      always() &&
+      needs.dependency-check.outputs.root == 'true' &&
+      needs.dependency-check.outputs.backend == 'true' &&
+      needs.dependency-check.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
