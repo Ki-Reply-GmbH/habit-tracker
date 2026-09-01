@@ -136,6 +136,7 @@ jobs:
   # spec update, so the openspec/ archive stays an honest record of what
   # was actually built rather than drifting from reality.
   spec-code-sync:
+    needs: dependency-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
