@@ -35,7 +35,6 @@ jobs:
         run: npm audit --audit-level=high
 
   backend:
-    if: hashFiles('src/backend/package-lock.json') != ''
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -43,7 +42,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check backend dependencies
+        id: backend
+        run: echo "available=$([ -f package-lock.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Node
+        if: steps.backend.outputs.available == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -51,12 +55,15 @@ jobs:
           cache-dependency-path: src/backend/package-lock.json
 
       - name: Install dependencies
+        if: steps.backend.outputs.available == 'true'
         run: npm ci
 
       - name: Lint
+        if: steps.backend.outputs.available == 'true'
         run: npm run lint
 
       - name: Run tests
+        if: steps.backend.outputs.available == 'true'
         run: npm test
 
   frontend:
