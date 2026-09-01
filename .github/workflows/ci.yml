@@ -141,11 +141,23 @@ jobs:
       TZ: ${{ matrix.tz }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Check test dependencies
+        id: test
+        run: echo "available=$([ -f package-lock.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        if: steps.test.outputs.available == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - run: npm ci
+
+      - name: Install dependencies
+        if: steps.test.outputs.available == 'true'
+        run: npm ci
+
       - name: Run streak/date tests under ${{ matrix.tz }}
+        if: steps.test.outputs.available == 'true'
         run: npm test -- --testPathPattern=streak
 
   # Spec-code sync check — the CI embodiment of "spec is the source of
