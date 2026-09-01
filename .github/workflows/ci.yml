@@ -1,0 +1,161 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      # Security / lint quality gate — Phase 4 checkpoint requirement.
+      # Swap for pip-audit / bandit / etc. if the backend is Python.
+      - name: Dependency vulnerability scan
+        run: npm audit --audit-level=high
+
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: src/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run e2e tests
+        run: npx playwright test
+
+  # Timezone matrix — the streak spec's whole point is correct day-boundary
+  # math across timezones and DST. Running the suite under only the CI
+  # runner's default TZ (usually UTC) would let a timezone bug pass silently.
+  timezone-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tz:
+          - UTC
+          - America/New_York      # standard US DST transition
+          - Europe/Berlin         # standard EU DST transition
+          - Pacific/Auckland      # southern-hemisphere DST (opposite season)
+          - Pacific/Chatham       # 45-minute UTC offset — catches lazy hour-only math
+    env:
+      TZ: ${{ matrix.tz }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - name: Run streak/date tests under ${{ matrix.tz }}
+        run: npm test -- --testPathPattern=streak
+
+  # Spec-code sync check — the CI embodiment of "spec is the source of
+  # truth." Fails the PR if implementation code changed without a matching
+  # spec update, so the openspec/ archive stays an honest record of what
+  # was actually built rather than drifting from reality.
+  spec-code-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check src/ changes have a matching spec update
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+
+          SRC_CHANGED=$(echo "$CHANGED" | grep -E '^src/' || true)
+          SPEC_CHANGED=$(echo "$CHANGED" | grep -E '^(specs/|openspec/changes/)' || true)
+
+          if [ -n "$SRC_CHANGED" ] && [ -z "$SPEC_CHANGED" ]; then
+            echo "::error::src/ changed but no matching update under specs/ or openspec/changes/."
+            echo "If this PR implements a spec'd feature, update the delta spec or specs/features/*/spec.md."
+            echo "If this is a genuine exception (typo fix, refactor with no behavior change), add"
+            echo "'skip-spec-check' as a PR label to bypass this gate."
+            echo "$SRC_CHANGED"
+            exit 1
+          fi
+
+  # Optional: add a secrets scanner (e.g., gitleaks) as a second gate once
+  # the repo has real integrations (GitHub MCP tokens, email provider keys).
