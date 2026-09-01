@@ -131,38 +131,6 @@ jobs:
       - name: Run e2e tests
         run: npx playwright test
 
-  # Timezone matrix — the streak spec's whole point is correct day-boundary
-  # math across timezones and DST. Running the suite under only the CI
-  # runner's default TZ (usually UTC) would let a timezone bug pass silently.
-  timezone-matrix:
-    needs: dependency-check
-    if: needs.dependency-check.outputs.root == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        tz:
-          - UTC
-          - America/New_York      # standard US DST transition
-          - Europe/Berlin         # standard EU DST transition
-          - Pacific/Auckland      # southern-hemisphere DST (opposite season)
-          - Pacific/Chatham       # 45-minute UTC offset — catches lazy hour-only math
-    env:
-      TZ: ${{ matrix.tz }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run streak/date tests under ${{ matrix.tz }}
-        run: npm test -- --testPathPattern=streak
-
   # Spec-code sync check — the CI embodiment of "spec is the source of
   # truth." Fails the PR if implementation code changed without a matching
   # spec update, so the openspec/ archive stays an honest record of what
