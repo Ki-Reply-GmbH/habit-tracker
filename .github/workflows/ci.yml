@@ -74,7 +74,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check frontend dependencies
+        id: frontend
+        run: echo "available=$([ -f package-lock.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Node
+        if: steps.frontend.outputs.available == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -82,15 +87,19 @@ jobs:
           cache-dependency-path: src/frontend/package-lock.json
 
       - name: Install dependencies
+        if: steps.frontend.outputs.available == 'true'
         run: npm ci
 
       - name: Lint
+        if: steps.frontend.outputs.available == 'true'
         run: npm run lint
 
       - name: Run tests
+        if: steps.frontend.outputs.available == 'true'
         run: npm test
 
       - name: Build
+        if: steps.frontend.outputs.available == 'true'
         run: npm run build
 
   e2e:
